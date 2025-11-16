@@ -38,7 +38,7 @@ npm run mock:prices
 ### Amplify deployment
 
 1. `npm install -g @aws-amplify/cli` and run `amplify init`.
-2. `amplify add api` + `amplify add function` are already scaffolded inside `amplify/backend/*` – run `amplify push` to create:
+2. `amplify add api` + `amplify add function` are already scaffolded inside `amplify/backend/*` - run `amplify push` to create:
    - `custodyGateway` API Gateway
    - Lambda trio `custodyBalances`, `custodyOrders`, `matchingEngine`
 3. Export the REST endpoint + API key and place them inside `.env.local` for the Next.js app.
@@ -53,8 +53,8 @@ npm run build
 
 ### Testing
 
-- `npm run test:unit` – Vitest coverage over the orderbook helpers
-- `npm run test:e2e` – Playwright journey covering wallet connect mocks and order placement (relies on `NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID` test value)
+- `npm run test:unit` - Vitest coverage over the orderbook helpers
+- `npm run test:e2e` - Playwright journey covering wallet connect mocks and order placement (relies on `NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID` test value)
 
 ### Scripts
 
@@ -69,8 +69,8 @@ npm run build
 
 ### Architecture summary
 
-- `src/app/(trade)/zcash` – main trading surface (chart, book, order form, funds modals)
-- `src/app/api/*` – WebSocket, order, balance, orderbook, and price endpoints
-- `src/lib/*` – shared env parsing, Upstash accessors, Amplify proxy helpers, custody simulator
-- `amplify/backend/*` – Infrastructure-as-code skeleton ready for `amplify push`
-- `scripts/mock-price-feed.ts` – feed generator for demos and local dev
+- `src/app/(trade)/zcash` - main trading surface (chart, book, order form, funds modals)
+- `src/app/api/*` - WebSocket, order, balance, orderbook, and price endpoints
+- `src/lib/*` - shared env parsing, Upstash accessors, Amplify proxy helpers, custody simulator
+- `amplify/backend/*` - Infrastructure-as-code skeleton ready for `amplify push`
+- `scripts/mock-price-feed.ts` - feed generator for demos and local dev
