@@ -1,0 +1,20 @@
+{
+  "routes": [
+    {
+      "path": "/balances",
+      "method": "POST",
+      "function": "custodyBalances"
+    },
+    {
+      "path": "/orders",
+      "method": "POST",
+      "function": "custodyOrders"
+    },
+    {
+      "path": "/orders",
+      "method": "DELETE",
+      "function": "custodyOrders"
+    }
+  ]
+}
+

@@ -1,0 +1,26 @@
+{
+  "api": {
+    "custodyGateway": {
+      "service": "API Gateway",
+      "providerPlugin": "awscloudformation",
+      "output": {
+        "ModelTemplate": "amplify/backend/api/custodyGateway/routes.json"
+      }
+    }
+  },
+  "function": {
+    "custodyBalances": {
+      "service": "Lambda",
+      "providerPlugin": "awscloudformation"
+    },
+    "custodyOrders": {
+      "service": "Lambda",
+      "providerPlugin": "awscloudformation"
+    },
+    "matchingEngine": {
+      "service": "Lambda",
+      "providerPlugin": "awscloudformation"
+    }
+  }
+}
+

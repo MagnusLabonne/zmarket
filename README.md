@@ -1,36 +1,76 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+## ZRC Custodial Market
 
-## Getting Started
+Next.js 16 + AWS Amplify implementation of the Zerdinals ZRC-20 market. The stack couples:
 
-First, run the development server:
+- Next.js App Router + Tailwind CSS v4 for the DeFi-inspired UI
+- WalletConnect (Solana + custom Zcash namespace) for sign-in
+- AWS Amplify (API Gateway + Lambda) as the custodial orchestration layer
+- Upstash Redis for balances, orderbooks, and pub/sub fan-out
+- Native WebSocket route for live price + orderbook streaming
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+### Requirements
+
+1. Copy `docs/env.sample` to `.env.local` and provide:
+
+```
+NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID=
+SOLANA_RPC_URL=
+ZCASH_RPC_URL=
+UPSTASH_REDIS_REST_URL=
+UPSTASH_REDIS_REST_TOKEN=
+AMPLIFY_API_BASE_URL=
+AMPLIFY_API_KEY=
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+2. Install deps and start the dev server:
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+```
+npm install
+npm run dev
+```
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+3. (Optional) push mock ticks into Redis for richer charts:
 
-## Learn More
+```
+npm run mock:prices
+```
 
-To learn more about Next.js, take a look at the following resources:
+### Amplify deployment
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+1. `npm install -g @aws-amplify/cli` and run `amplify init`.
+2. `amplify add api` + `amplify add function` are already scaffolded inside `amplify/backend/*` – run `amplify push` to create:
+   - `custodyGateway` API Gateway
+   - Lambda trio `custodyBalances`, `custodyOrders`, `matchingEngine`
+3. Export the REST endpoint + API key and place them inside `.env.local` for the Next.js app.
+4. Configure Amplify Hosting or your CI (GitHub Actions/AWS CodeBuild) to run:
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+```
+npm ci
+npm run lint
+npm run test
+npm run build
+```
 
-## Deploy on Vercel
+### Testing
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+- `npm run test:unit` – Vitest coverage over the orderbook helpers
+- `npm run test:e2e` – Playwright journey covering wallet connect mocks and order placement (relies on `NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID` test value)
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+### Scripts
+
+| Command             | Purpose                                               |
+|---------------------|-------------------------------------------------------|
+| `npm run dev`       | Start Next.js locally                                 |
+| `npm run lint`      | ESLint + Next linting                                 |
+| `npm run build`     | Production build                                      |
+| `npm run preview`   | Launch compiled app                                   |
+| `npm run mock:prices` | Publish a synthetic candle into Upstash             |
+| `npm run test`      | Combined unit + e2e tests                             |
+
+### Architecture summary
+
+- `src/app/(trade)/zcash` – main trading surface (chart, book, order form, funds modals)
+- `src/app/api/*` – WebSocket, order, balance, orderbook, and price endpoints
+- `src/lib/*` – shared env parsing, Upstash accessors, Amplify proxy helpers, custody simulator
+- `amplify/backend/*` – Infrastructure-as-code skeleton ready for `amplify push`
+- `scripts/mock-price-feed.ts` – feed generator for demos and local dev
