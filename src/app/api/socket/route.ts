@@ -2,10 +2,11 @@ import { NextRequest } from "next/server";
 import { subscribeRealtimeEvent } from "@/lib/realtime-bus";
 import { simulateOrderBook } from "@/lib/custody-sim";
 import { fetchRecentTicks } from "@/lib/prices";
+import { DEFAULT_MARKET } from "@/lib/market";
 
 export const runtime = "edge";
 
-type ServerSocket = WebSocket & { isAlive?: boolean };
+type ServerSocket = WebSocket & { isAlive?: boolean; accept: () => void };
 
 const sockets = new Set<ServerSocket>();
 
@@ -21,10 +22,11 @@ const unsubscribe = subscribeRealtimeEvent((event) => {
 });
 
 async function primeSocket(socket: ServerSocket) {
-  const [orderbook, ticks] = await Promise.all([simulateOrderBook(), fetchRecentTicks()]);
-  socket.send(JSON.stringify({ type: "orderbook", payload: orderbook }));
+  const market = DEFAULT_MARKET;
+  const [orderbook, ticks] = await Promise.all([simulateOrderBook(market), fetchRecentTicks(market)]);
+  socket.send(JSON.stringify({ type: "orderbook", payload: { market, book: orderbook } }));
   if (ticks.length) {
-    socket.send(JSON.stringify({ type: "price", payload: ticks[ticks.length - 1] }));
+    socket.send(JSON.stringify({ type: "price", payload: { market, tick: ticks[ticks.length - 1] } }));
   }
 }
 

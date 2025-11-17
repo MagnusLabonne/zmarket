@@ -41,13 +41,20 @@ const simulate = async (path: AmplifyPath, init: { method?: string; body?: unkno
     }
     case "/orders": {
       if (init.method === "DELETE") {
-        const { orderId, side } = (init.body ?? {}) as { orderId: string; side: "buy" | "sell" };
-        await simulateOrderCancel(orderId, side);
+        const { orderId, side, market } = (init.body ?? {}) as {
+          orderId: string;
+          side: "buy" | "sell";
+          market?: string;
+        };
+        await simulateOrderCancel(orderId, side, market);
         return { ok: true };
       }
       return simulateOrderPlacement(init.body as OrderRequest);
     }
-    case "/orderbook":
+    case "/orderbook": {
+      const { market } = (init.body ?? {}) as { market?: string };
+      return simulateOrderBook(market);
+    }
     default:
       return simulateOrderBook();
   }
@@ -61,7 +68,7 @@ export const submitCustodyOrder = async (payload: OrderRequest) => {
   return amplifyInvoke("/orders", { method: "POST", body: payload });
 };
 
-export const cancelCustodyOrder = async (orderId: string, side: "buy" | "sell") => {
-  return amplifyInvoke("/orders", { method: "DELETE", body: { orderId, side } });
+export const cancelCustodyOrder = async (orderId: string, side: "buy" | "sell", market?: string) => {
+  return amplifyInvoke("/orders", { method: "DELETE", body: { orderId, side, market } });
 };
 

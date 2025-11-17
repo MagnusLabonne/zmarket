@@ -1,19 +1,24 @@
 #!/usr/bin/env tsx
 import { randomUUID } from "node:crypto";
-import { pushTick } from "../src/lib/prices";
+import { recordTradeAndBroadcast } from "../src/lib/trades";
+import { normalizeMarket } from "../src/lib/market";
+
+const MARKET = normalizeMarket(process.argv[2]);
 
 const loop = async () => {
   const base = 135 + Math.random() * 4;
-  await pushTick({
+  await recordTradeAndBroadcast({
     id: randomUUID(),
-    open: base - Math.random(),
-    high: base + Math.random() * 2,
-    low: base - Math.random() * 2,
-    close: base + Math.random(),
-    volume: 100 + Math.random() * 50,
+    taker: "mock-wallet",
+    maker: "internal",
+    price: base + (Math.random() - 0.5),
+    size: 1 + Math.random(),
+    side: Math.random() > 0.5 ? "buy" : "sell",
+    createdAt: new Date().toISOString(),
     timestamp: Date.now(),
+    market: MARKET,
   });
-  console.log("tick pushed");
+  console.log("trade stored");
 };
 
 loop()

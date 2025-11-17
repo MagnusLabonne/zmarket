@@ -9,6 +9,7 @@ const orderSchema = z.object({
   type: z.enum(["limit", "market"]),
   price: z.number().positive(),
   size: z.number().positive(),
+  market: z.string().optional(),
 });
 
 export async function POST(request: NextRequest) {
@@ -26,16 +27,17 @@ export async function DELETE(request: NextRequest) {
   if (!json?.orderId || !json?.side) {
     return NextResponse.json({ error: "orderId and side required" }, { status: 400 });
   }
-  const result = await cancelCustodyOrder(json.orderId, json.side);
+  const result = await cancelCustodyOrder(json.orderId, json.side, json.market);
   return NextResponse.json(result);
 }
 
 export async function GET(request: NextRequest) {
   const wallet = request.nextUrl.searchParams.get("wallet");
+  const market = request.nextUrl.searchParams.get("market") ?? undefined;
   if (!wallet) {
     return NextResponse.json({ error: "wallet required" }, { status: 400 });
   }
-  const orders = await simulateWalletOrders(wallet);
+  const orders = await simulateWalletOrders(wallet, market);
   return NextResponse.json(orders);
 }
 

@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { useWalletSession } from "@/context/wallet-session-context";
+import { useTokenSelection } from "@/context/token-context";
 import { formatCurrency } from "@/lib/utils";
 import { FundModal } from "./FundModal";
 
@@ -9,6 +10,7 @@ const allocation = [0.25, 0.5, 0.75, 1];
 
 export const TradeForm = () => {
   const { address, balances } = useWalletSession();
+  const { selectedToken, marketId } = useTokenSelection();
   const [side, setSide] = useState<"buy" | "sell">("buy");
   const [type, setType] = useState<"limit" | "market">("limit");
   const [price, setPrice] = useState(137.59);
@@ -34,7 +36,15 @@ export const TradeForm = () => {
       const response = await fetch("/api/orders", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ wallet: address, side, type, price, size }),
+        body: JSON.stringify({
+          wallet: address,
+          side,
+          type,
+          price,
+          size,
+          market: marketId,
+          token: selectedToken?.tick,
+        }),
       });
       if (!response.ok) throw new Error("Order rejected");
       setMessage("Order submitted");
@@ -45,9 +55,19 @@ export const TradeForm = () => {
     }
   };
 
+  if (!selectedToken) {
+    return (
+      <div className="glass-panel p-5 text-sm text-slate-400">
+        Select a token to enable trading.
+      </div>
+    );
+  }
+
+  const tokenLabel = selectedToken.tick.toUpperCase();
+
   return (
-    <div className="glass-panel p-5 space-y-5">
-      <div className="flex justify-between items-center">
+    <div className="glass-panel p-4 space-y-4">
+      <div className="flex justify-between items-center gap-3 flex-wrap">
         <div className="rounded-full bg-white/5 p-1 flex">
           {(["buy", "sell"] as const).map((mode) => (
             <button
@@ -61,26 +81,30 @@ export const TradeForm = () => {
             </button>
           ))}
         </div>
-        <div className="flex gap-2">
+        <div className="flex items-center gap-2 text-xs text-slate-500">
+          <span>Inscription</span>
+          <span className="text-slate-200">{selectedToken.inscriptionId}</span>
+        </div>
+        <div className="flex gap-2 shrink-0">
           <FundModal mode="deposit" label="Deposit" />
           <FundModal mode="withdraw" label="Withdraw" />
         </div>
       </div>
 
       <div className="space-y-3">
-        <label className="text-xs uppercase tracking-[0.3em] text-slate-500">Ordertyp</label>
+        <label className="text-xs uppercase tracking-[0.3em] text-slate-500">Order Type</label>
         <select
           className="w-full rounded-2xl border border-white/10 bg-black/30 px-4 py-3 text-sm outline-none focus:border-signal/70"
           value={type}
           onChange={(e) => setType(e.target.value as "limit" | "market")}
         >
-          <option value="limit">Limitorder</option>
-          <option value="market">Marknadsorder</option>
+          <option value="limit">Limit</option>
+          <option value="market">Market</option>
         </select>
       </div>
 
       <div className="space-y-3">
-        <label className="text-xs uppercase tracking-[0.3em] text-slate-500">Limitpris</label>
+        <label className="text-xs uppercase tracking-[0.3em] text-slate-500">Limit Price</label>
         <div className="flex items-center gap-3">
           <input
             type="number"
@@ -93,7 +117,7 @@ export const TradeForm = () => {
       </div>
 
       <div className="space-y-3">
-        <label className="text-xs uppercase tracking-[0.3em] text-slate-500">Antal</label>
+        <label className="text-xs uppercase tracking-[0.3em] text-slate-500">Size</label>
         <div className="flex items-center gap-3">
           <input
             type="number"
@@ -135,7 +159,8 @@ export const TradeForm = () => {
         <div className="flex justify-between">
           <span>Available</span>
           <span>
-            {(balances?.usdc ?? 0).toFixed(2)} USDC / {(balances?.zrc ?? 0).toFixed(3)} ZRC
+            {(balances?.usdc ?? 0).toFixed(2)} USDC / {(balances?.zrc ?? 0).toFixed(3)}{" "}
+            {tokenLabel}
           </span>
         </div>
         <div className="flex justify-between">
@@ -153,9 +178,9 @@ export const TradeForm = () => {
       <button
         className="btn-primary w-full justify-center text-lg"
         onClick={handleSubmit}
-        disabled={submitting || insufficient}
+        disabled={submitting || insufficient || !selectedToken}
       >
-        {submitting ? "Sending..." : side === "buy" ? "Buy ZRC" : "Sell ZRC"}
+        {submitting ? "Sending..." : side === "buy" ? `Buy ${tokenLabel}` : `Sell ${tokenLabel}`}
       </button>
     </div>
   );

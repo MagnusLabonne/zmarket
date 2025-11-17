@@ -2,6 +2,7 @@ import { z } from "zod";
 import { getRedis, orderBookKey, balanceKey } from "./upstash";
 import { OrderRequest, OrderSnapshot, OrderBookLevel, TradeFill } from "./types";
 import { publishRealtimeEvent } from "./realtime-bus";
+import { normalizeMarket } from "./market";
 
 const orderSchema = z.object({
   wallet: z.string().min(1),
@@ -9,17 +10,18 @@ const orderSchema = z.object({
   type: z.enum(["limit", "market"]),
   price: z.number().positive(),
   size: z.number().positive(),
+  market: z.string().optional(),
 });
 
-const MARKET_ID = "ZRC-SOL";
 const orderKey = (id: string) => `order:${id}`;
 const walletOrdersKey = (wallet: string) => `wallet-orders:${wallet}`;
 
-export const getOrderBook = async () => {
+export const getOrderBook = async (market?: string) => {
+  const marketId = normalizeMarket(market);
   const redis = getRedis();
   const [bids, asks] = await Promise.all([
-    redis.zrange(orderBookKey(MARKET_ID, "buy"), 0, 49, { rev: true, withScores: true }),
-    redis.zrange(orderBookKey(MARKET_ID, "sell"), 0, 49, { withScores: true }),
+    redis.zrange(orderBookKey(marketId, "buy"), 0, 49, { rev: true, withScores: true }),
+    redis.zrange(orderBookKey(marketId, "sell"), 0, 49, { withScores: true }),
   ]);
 
   return {
@@ -65,11 +67,12 @@ const normalizeDepth = async (entries: (string | number)[]): Promise<OrderBookLe
 
 export const placeOrder = async (input: OrderRequest): Promise<OrderSnapshot> => {
   const data = orderSchema.parse(input);
+  const marketId = normalizeMarket(data.market);
   const redis = getRedis();
   const id = crypto.randomUUID();
   const timestamp = new Date().toISOString();
 
-  await redis.zadd(orderBookKey(MARKET_ID, data.side), {
+  await redis.zadd(orderBookKey(marketId, data.side), {
     score: data.price,
     member: id,
   });
@@ -81,6 +84,7 @@ export const placeOrder = async (input: OrderRequest): Promise<OrderSnapshot> =>
 
   const snapshot: OrderSnapshot = {
     ...data,
+    market: marketId,
     id,
     status: "open",
     filledSize: 0,
@@ -90,26 +94,28 @@ export const placeOrder = async (input: OrderRequest): Promise<OrderSnapshot> =>
 
   await redis.set(orderKey(id), JSON.stringify(snapshot));
   await redis.sadd(walletOrdersKey(data.wallet), id);
-  publishRealtimeEvent({ type: "orderbook", payload: await getOrderBook() });
+  publishRealtimeEvent({ type: "orderbook", payload: { market: marketId, book: await getOrderBook(marketId) } });
   return snapshot;
 };
 
-export const cancelOrder = async (orderId: string, side: "buy" | "sell") => {
+export const cancelOrder = async (orderId: string, side: "buy" | "sell", market?: string) => {
   const redis = getRedis();
+  const marketId = normalizeMarket(market);
   const payload = await redis.get<string>(orderKey(orderId));
   if (payload) {
     const order = JSON.parse(payload) as OrderSnapshot;
     await redis.srem(walletOrdersKey(order.wallet), orderId);
   }
   await redis.del(orderKey(orderId));
-  await redis.zrem(orderBookKey(MARKET_ID, side), orderId);
+  await redis.zrem(orderBookKey(marketId, side), orderId);
 };
 
-export const simulateMatch = async (): Promise<TradeFill | null> => {
+export const simulateMatch = async (market?: string): Promise<TradeFill | null> => {
+  const marketId = normalizeMarket(market);
   const redis = getRedis();
   const [bids, asks] = await Promise.all([
-    redis.zrange(orderBookKey(MARKET_ID, "buy"), 0, 0, { rev: true, withScores: true }),
-    redis.zrange(orderBookKey(MARKET_ID, "sell"), 0, 0, { withScores: true }),
+    redis.zrange(orderBookKey(marketId, "buy"), 0, 0, { rev: true, withScores: true }),
+    redis.zrange(orderBookKey(marketId, "sell"), 0, 0, { withScores: true }),
   ]);
 
   if (!bids.length || !asks.length) return null;
@@ -147,15 +153,15 @@ export const simulateMatch = async (): Promise<TradeFill | null> => {
   ]);
 
   if (bidOrder.status === "filled") {
-    await redis.zrem(orderBookKey(MARKET_ID, "buy"), bidOrder.id);
+    await redis.zrem(orderBookKey(marketId, "buy"), bidOrder.id);
     await redis.srem(walletOrdersKey(bidOrder.wallet), bidOrder.id);
   }
   if (askOrder.status === "filled") {
-    await redis.zrem(orderBookKey(MARKET_ID, "sell"), askOrder.id);
+    await redis.zrem(orderBookKey(marketId, "sell"), askOrder.id);
     await redis.srem(walletOrdersKey(askOrder.wallet), askOrder.id);
   }
 
-  publishRealtimeEvent({ type: "orderbook", payload: await getOrderBook() });
+  publishRealtimeEvent({ type: "orderbook", payload: { market: marketId, book: await getOrderBook(marketId) } });
 
   const trade: TradeFill = {
     id: crypto.randomUUID(),
@@ -165,6 +171,8 @@ export const simulateMatch = async (): Promise<TradeFill | null> => {
     size,
     side: "buy",
     createdAt: new Date().toISOString(),
+    timestamp: Date.now(),
+    market: marketId,
   };
   return trade;
 };

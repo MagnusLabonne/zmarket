@@ -14,6 +14,7 @@ export interface OrderRequest {
   type: OrderType;
   price: number;
   size: number;
+  market?: string;
 }
 
 export interface OrderBookLevel {
@@ -38,6 +39,8 @@ export interface TradeFill {
   size: number;
   side: OrderSide;
   createdAt: string;
+  timestamp: number;
+  market: string;
 }
 
 export interface PriceTick {
@@ -55,5 +58,20 @@ export interface CustodyNotice {
   depositAddress: string;
   hotWallet: string;
   status: "online" | "delayed" | "maintenance";
+}
+
+export interface ZrcToken {
+  tick: string;
+  supply: number;
+  limit: number;
+  mintedAmount: number;
+  isMinted: boolean;
+  inscriptionId: string;
+  holders: number;
+  deployer: string;
+  time: number;
+  block: number;
+  completedBlock: number;
+  txid: string;
 }
 

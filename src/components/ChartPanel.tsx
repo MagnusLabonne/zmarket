@@ -1,10 +1,16 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useCallback, useEffect, useRef } from "react";
 import useSWR from "swr";
-import { createChart, ColorType, type IChartApi, type ISeriesApi } from "lightweight-charts";
+import type { IChartApi, ISeriesApi } from "lightweight-charts";
 import { useRealtimeFeed } from "@/hooks/useRealtimeFeed";
 import type { PriceTick } from "@/lib/types";
+import { useTokenSelection } from "@/context/token-context";
+
+type PriceEvent = {
+  market: string;
+  tick: PriceTick;
+};
 
 const fetcher = (url: string) => fetch(url).then((res) => res.json());
 
@@ -12,54 +18,74 @@ export const ChartPanel = () => {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const chartRef = useRef<IChartApi>();
   const seriesRef = useRef<ISeriesApi<"Candlestick">>();
-  const { data } = useSWR<PriceTick[]>("/api/price-feed", fetcher);
-  const { messages } = useRealtimeFeed<PriceTick>("price");
+  const { marketId } = useTokenSelection();
+  const { data } = useSWR<PriceTick[]>(marketId ? `/api/price-feed?market=${marketId}` : null, fetcher);
+  const priceFilter = useCallback((payload: PriceEvent) => payload.market === marketId, [marketId]);
+  const { messages } = useRealtimeFeed<PriceEvent>("price", priceFilter);
 
   useEffect(() => {
-    if (!containerRef.current || chartRef.current) return;
-    const chart = createChart(containerRef.current, {
-      layout: {
-        background: { type: ColorType.Solid, color: "transparent" },
-        textColor: "#cbd5f5",
-      },
-      grid: {
-        vertLines: { color: "rgba(255,255,255,0.02)" },
-        horzLines: { color: "rgba(255,255,255,0.02)" },
-      },
-      crosshair: {
-        mode: 1,
-      },
-      priceScale: {
-        borderColor: "rgba(255,255,255,0.08)",
-      },
-      timeScale: {
-        borderColor: "rgba(255,255,255,0.08)",
-      },
-    });
-    const series = chart.addCandlestickSeries({
-      upColor: "#62ffd2",
-      borderUpColor: "#62ffd2",
-      wickUpColor: "#62ffd2",
-      downColor: "#ff6492",
-      borderDownColor: "#ff6492",
-      wickDownColor: "#ff9bb4",
-    });
-    chartRef.current = chart;
-    seriesRef.current = series;
+    let chart: IChartApi | undefined;
+    let resize: (() => void) | undefined;
 
-    const resize = () => {
-      chart.applyOptions({ width: containerRef.current?.clientWidth ?? 600 });
+    const init = async () => {
+      if (!containerRef.current || chartRef.current) return;
+      const { createChart, ColorType } = await import("lightweight-charts");
+
+      chart = createChart(containerRef.current, {
+        layout: {
+          background: { type: ColorType.Solid, color: "transparent" },
+          textColor: "#cbd5f5",
+        },
+        grid: {
+          vertLines: { color: "rgba(255,255,255,0.02)" },
+          horzLines: { color: "rgba(255,255,255,0.02)" },
+        },
+        crosshair: {
+          mode: 1,
+        },
+        priceScale: {
+          borderColor: "rgba(255,255,255,0.08)",
+        },
+        timeScale: {
+          borderColor: "rgba(255,255,255,0.08)",
+        },
+      });
+
+      const series = chart.addCandlestickSeries({
+        upColor: "#62ffd2",
+        borderUpColor: "#62ffd2",
+        wickUpColor: "#62ffd2",
+        downColor: "#ff6492",
+        borderDownColor: "#ff6492",
+        wickDownColor: "#ff9bb4",
+      });
+
+      chartRef.current = chart;
+      seriesRef.current = series;
+
+      resize = () => {
+        chart?.applyOptions({ width: containerRef.current?.clientWidth ?? 600 });
+      };
+      resize();
+      window.addEventListener("resize", resize);
     };
-    resize();
-    window.addEventListener("resize", resize);
+
+    init();
+
     return () => {
-      window.removeEventListener("resize", resize);
-      chart.remove();
+      if (resize) window.removeEventListener("resize", resize);
+      chart?.remove();
+      chartRef.current = undefined;
+      seriesRef.current = undefined;
     };
   }, []);
 
   useEffect(() => {
-    if (!data?.length || !seriesRef.current) return;
+    if (!seriesRef.current) return;
+    if (!data?.length) {
+      seriesRef.current.setData([]);
+      return;
+    }
     seriesRef.current.setData(
       data.map((tick) => ({
         open: tick.open,
@@ -73,7 +99,7 @@ export const ChartPanel = () => {
 
   useEffect(() => {
     if (!messages.length || !seriesRef.current) return;
-    const latest = messages[messages.length - 1];
+    const latest = messages[messages.length - 1].tick;
     seriesRef.current.update({
       open: latest.open,
       high: latest.high,
@@ -83,8 +109,13 @@ export const ChartPanel = () => {
     });
   }, [messages]);
 
+  useEffect(() => {
+    if (!seriesRef.current) return;
+    seriesRef.current.setData([]);
+  }, [marketId]);
+
   return (
-    <div className="glass-panel h-[420px] w-full p-2">
+    <div className="glass-panel h-[360px] w-full p-1.5">
       <div className="w-full h-full" ref={containerRef} />
     </div>
   );

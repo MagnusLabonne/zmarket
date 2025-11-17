@@ -1,6 +1,6 @@
 export const shortenAddress = (value?: string, size = 4) => {
   if (!value) return "";
-  return `${value.slice(0, size + 2)}…${value.slice(-size)}`;
+  return `${value.slice(0, size + 2)}...${value.slice(-size)}`;
 };
 
 export const formatCurrency = (value: number, currency = "USDC") =>

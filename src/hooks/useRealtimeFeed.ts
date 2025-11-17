@@ -1,15 +1,23 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 type SocketMessage<T> = {
   type: string;
   payload: T;
 };
 
-export const useRealtimeFeed = <T = unknown>(filterType?: string) => {
+export const useRealtimeFeed = <T = unknown>(
+  filterType?: string,
+  predicate?: (payload: T) => boolean,
+) => {
   const [messages, setMessages] = useState<T[]>([]);
   const [status, setStatus] = useState<"connecting" | "open" | "closed">("connecting");
+  const predicateRef = useRef<typeof predicate>();
+
+  useEffect(() => {
+    predicateRef.current = predicate;
+  }, [predicate]);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -24,6 +32,7 @@ export const useRealtimeFeed = <T = unknown>(filterType?: string) => {
       try {
         const data: SocketMessage<T> = JSON.parse(event.data);
         if (filterType && data.type !== filterType) return;
+        if (predicateRef.current && !predicateRef.current(data.payload)) return;
         setMessages((prev) => [...prev.slice(-99), data.payload]);
       } catch (error) {
         console.error("ws parse", error);

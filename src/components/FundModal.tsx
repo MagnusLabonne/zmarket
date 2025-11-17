@@ -47,7 +47,7 @@ export const FundModal = ({ mode, label }: Props) => {
           <div>
             <Dialog.Title className="text-lg font-semibold">{actionCopy} funds</Dialog.Title>
             <Dialog.Description className="text-sm text-slate-400 mt-1">
-              Custodial vaults route through Solana or Zcash depending on the asset you choose.
+              Custodial settlement lands on Solana for now — ZRC on-chain settlement arrives after launch.
             </Dialog.Description>
           </div>
 

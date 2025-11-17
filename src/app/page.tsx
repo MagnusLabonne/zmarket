@@ -5,14 +5,14 @@ export default function Home() {
     <div className="flex min-h-screen flex-col items-center justify-center px-6 py-16 text-slate-100">
       <div className="glass-panel max-w-4xl w-full px-10 py-12 flex flex-col gap-8 text-center">
         <p className="text-sm uppercase tracking-[0.35em] text-slate-400">
-          Zerdinals Custodial Venue
+          Zerdinals Trading Surface
         </p>
         <h1 className="text-4xl sm:text-5xl font-semibold leading-tight">
-          Trade ZRC-20 with Solana settlement and custodial-grade safeguards.
+          Speculative ZRC-20 markets with instant Solana settlement.
         </h1>
         <p className="text-slate-400 text-lg">
-          Swap Zcash inscriptions against Solana liquidity, stream live order books, and settle
-          against our battle-tested vault wallets. Bring your wallet, we handle the custody.
+          Plug in Phantom, Backpack, or Solflare, scan the live order book, and express a view on any inscription without waiting for
+          future custody rails to arrive.
         </p>
         <div className="flex flex-col sm:flex-row gap-4 justify-center">
           <Link href="/zcash" className="btn-primary text-base">

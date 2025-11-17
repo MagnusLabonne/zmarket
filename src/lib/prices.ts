@@ -1,37 +1,29 @@
-import { getRedis } from "./upstash";
 import type { PriceTick } from "./types";
-import { publishRealtimeEvent } from "./realtime-bus";
+import { buildCandlesFromTrades, fetchRecentTrades } from "./trades";
 
-const PRICE_KEY = "price:ZRC-SOL";
+export const fetchRecentTicks = async (market?: string): Promise<PriceTick[]> => {
+  const trades = await fetchRecentTrades(market);
+  const candles = buildCandlesFromTrades(trades);
 
-export const fetchRecentTicks = async (limit = 200): Promise<PriceTick[]> => {
-  const redis = getRedis();
-  const entries = await redis.lrange<string>(PRICE_KEY, -limit, -1);
-  if (!entries.length) {
+  if (!candles.length) {
     return seedTicks();
   }
-  return entries.map((entry) => JSON.parse(entry) as PriceTick);
+
+  return candles;
 };
 
-export const pushTick = async (tick: PriceTick) => {
-  const redis = getRedis();
-  await redis.rpush(PRICE_KEY, JSON.stringify(tick));
-  await redis.ltrim(PRICE_KEY, -500, -1);
-  publishRealtimeEvent({ type: "price", payload: tick });
-};
-
-const seedTicks = () => {
+const seedTicks = (): PriceTick[] => {
   const now = Date.now();
-  return Array.from({ length: 60 }).map((_, idx) => {
-    const base = 130 + Math.sin(idx / 3) * 5;
+  return Array.from({ length: 15 }).map((_, idx) => {
+    const base = 130 + Math.sin(idx / 2) * 3;
     return {
-      id: crypto.randomUUID(),
-      open: base - 0.5,
-      high: base + 1,
-      low: base - 1,
-      close: base + 0.25,
-      volume: 100 + idx * 2,
-      timestamp: now - (60 - idx) * 60 * 1000,
+      id: `seed-${idx}`,
+      open: base - 0.3,
+      high: base + 0.6,
+      low: base - 0.6,
+      close: base + 0.2,
+      volume: 50 + idx * 5,
+      timestamp: now - (15 - idx) * 15 * 60 * 1000,
     };
   });
 };
